@@ -1,5 +1,7 @@
 from typing import Any
 from scipy.optimize import minimize
+from nn_model import NNModel
+import numpy as np
 
 class Optimizer:
 
@@ -48,8 +50,37 @@ class Optimizer:
         
         # TODO: Implement NN method
         if method == 'Neural Network':
-            pass
-            raise NotImplementedError('Neural Network method not implemented yet')
-            return None
+            return self.NN_opt(min_func, x0, callback=callback)
         else:
             return minimize(min_func, x0, method=method,callback=callback)
+
+    def NN_opt(self,func, para_size, callback=None):
+        # optimize using neural network
+        sample_x = np.zeros([0,12])
+        sample_y = np.array([])
+
+        optimal = [None,1]
+
+        for _ in range(20) : # blackhole register
+            para = np.random.uniform(-np.pi/2, np.pi/2, para_size)
+            y = func(para)
+
+            if y < optimal[1]:
+                optimal = [para, y]
+            sample_x = np.append(sample_x, [para], axis=0)
+            sample_y = np.append(sample_y, y)
+
+        nn_model = NNModel(para_size,layer_sizes=[32,1],activation_functions=['relu','sigmoid'])
+        for i in range(20):
+            nn_model.fit(sample_x, sample_y,epochs=100, verbose=0)
+            prediction = nn_model.predict_optimum()
+            y = func(prediction)
+
+            if y < optimal[1]:
+                optimal = [prediction, y]
+            sample_x = np.append(sample_x, [prediction], axis=0)
+            sample_y = np.append(sample_y, y)
+
+        return optimal
+
+
