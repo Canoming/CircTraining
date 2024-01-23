@@ -1,84 +1,105 @@
-'''
-Author: Guowenyu
-Date: 2024-01-16 15:42:44
-LastEditTime: 2024-01-19 13:45:45
-LastEditors: Sleepy
-Description: In User Settings Edit
-FilePath: /lq/NN_compilation/neural_netwoek_learning/nn_model.py
-'''
-
 import tensorflow as tf
-from tensorflow import keras
+import keras
+from keras.src.models.sequential import Sequential
 import numpy as np
 from scipy.optimize import minimize
 
+from typing import List, Callable
+
+class trainer_model(Sequential):
+    def __init__(self,
+                 layers:keras.layers.Layer=None,
+                 trainable:bool=True,
+                 name:str=None,
+                 ):
+        super().__init__(layers=layers, trainable=trainable, name=name)
+    
+    @staticmethod
+    def default_model(input_shape:tuple):
+        return trainer_model(
+            layers=[
+                keras.layers.Input(input_shape),
+                keras.layers.Dense(64, activation='relu', input_shape=(2,),
+                                   kernel_initializer='random_normal',
+                                   kernel_regularizer=keras.regularizers.l2(0.01)),
+                keras.layers.Dense(32, activation='relu', input_shape=(2,)),
+                keras.layers.Dense(12, activation='relu', input_shape=(2,)),
+                keras.layers.Dense(1, activation='sigmoid', input_shape=(2,)),
+                ],
+                name='default_model'
+            )
+    
+    # TODO: add optimizer
+    def optimize():
+        """
+        After the model is trained, minimize the output by training the input.
+        """
+        pass
 
 class NNModel:
-    """
-    Neural Network model class.
 
-    Given a list of date: `[[para, fidelity] ...]`, train a neural network model to predict the optimum of the given function.
-
-    """
-    
-    def __init__(self, input_shape, layer_sizes, activation_functions, seed=None):
+    def __init__(self,
+                 input_shape:tuple,
+                 layers:List[keras.layers.Layer] | List[tuple],
+                 initializer:keras.initializers.Initializer=None,
+                 regulizer:keras.regularizers.Regularizer=None,):
         """
         construct a Keras Sequential model with the given parameters.
         
         parameters:
-        input_shape - shape of the input data.
-        layer_sizes - list of each layer's size.
-        activation_functions - list of each layer's activation function.
-        seed - random seed for the model.
+        input_shape - shape of the input layer. exp: `(5,)`
         """
-        
+
         self.input_shape = input_shape
-        self.layer_sizes = layer_sizes
-        self.activation_functions = activation_functions
-        self.seed = seed
-        self.model = self.create_nn_model(input_shape, layer_sizes, activation_functions, seed)
 
+        self.initializer = initializer
+        self.regulizer = regulizer
 
-    def create_nn_model(self,input_shape, layer_sizes, activation_functions, seed=None):
-        """
-        construct a Keras Sequential model with the given parameters.
+        if isinstance(layers[0], keras.layers.Layer):
+            self.layers = layers
+        elif isinstance(layers[0], tuple):
+            self.layers = [keras.layers.Dense(
+                size,func,
+                kernel_initializer=self.initializer,
+                kernel_regularizer=self.regulizer)
+                for size, func in layers]
         
-        parameters:
-        input_shape - shape of the input data.
-        layer_sizes - list of each layer's size.
-        activation_functions - list of each layer's activation function.
-        seed - random seed for the model.
-        
-        returns:
-        model of  Keras Sequential
+
+        self.create_model()
+    
+    def create_model(self):
+        # Initiate model with input layer
+        self.model = Sequential(
+            [
+                keras.layers.Input(shape=self.input_shape, dtype=tf.float32)
+            ] + self.layers
+        )
+
+    def add_layer(self,
+                  size:int,
+                  act_func:Callable,
+                  renew = False
+                ) -> None:
         """
-        # make sure the number of layers and activation functions match
-        if len(layer_sizes) != len(activation_functions):
-            raise ValueError("number of layers and activation functions must match")
+        Add a layer to the model.
+        If renew is True, the model will be re-created.
+        Otherwise, add the layer to the model without touch the previous layers.
+        """
 
-        # assert len(layer_sizes) == len(activation_functions), "number of layers and activation functions must match"
-
-        # initialize random number generator
-        if seed is not None:
-            tf.random.set_seed(seed)
-        initializer = tf.keras.initializers.he_normal(seed=seed)
-
-        # construct the model
-        model = keras.models.Sequential()
-        model.add(keras.layers.Input(shape=input_shape, dtype=tf.float32))
-
-        # add hidden layers
-        for size, activation in zip(layer_sizes, activation_functions):
-            model.add(keras.layers.Dense(size,
-                                        kernel_initializer=initializer,
-                                        kernel_regularizer=keras.regularizers.l2(1e-8),
-                                        activation=activation))
-
-        return model
-
+        self.layers.append(keras.layers.Dense(size, act_func))
+        if renew:
+            self.create_model()
+        else:
+            self.model.add(self.layers[-1])
 
     # TODO: fitting
-    def fit(self, inputs, outputs, optimizer='Adam', loss:str='mean_squared_error', epochs:int=1, batch_size:int=None, validation_data=None, verbose=1):
+    def fit(self, inputs, outputs,
+            optimizer='Adam',
+            loss:str='mean_squared_error',
+            epochs:int=1,
+            batch_size:int=None,
+            validation_data=None,
+            verbose=0):
         """
         fit the model with the given parameters.
 
@@ -199,12 +220,6 @@ class NNModel:
             raise ValueError(f"Optimizer '{optimizer_name}' not recognized")
 
         return optimizer_class(lr=lr, beta_1=beta_1, beta_2=beta_2, epsilon=epsilon, decay=decay, amsgrad=amsgrad)
-
-
-
-
-
-
 
 # test the function
 if __name__ == "__main__":

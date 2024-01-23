@@ -48,7 +48,6 @@ class Optimizer:
         if method not in Optimizer._available_methods:
             raise ValueError(f'Optimizer method {method} not available. Available methods are {self.list_methods()}')
         
-        # TODO: Implement NN method
         if method == 'Neural Network':
             return self.NN_opt(min_func, x0, callback=callback)
         else:
@@ -56,7 +55,7 @@ class Optimizer:
 
     def NN_opt(self,func, para_size, callback=None):
         # optimize using neural network
-        sample_x = np.zeros([0,12])
+        sample_x = np.zeros([0,para_size])
         sample_y = np.array([])
 
         optimal = [None,1]
